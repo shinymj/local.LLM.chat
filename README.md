@@ -17,9 +17,9 @@ openai_api_key = "YOUR OPENAI KEY"
 코드 실행시 `root` 폴더에 `_output_모델명` 폴더가 자동 생성되어 채팅 결과가 저장됩니다.
 
 ### Model option 지정 및 저장
-`# 모델 초기화` 블록에서 TEMPERATURE 와 MODEL_NAME 을 지정할 수 있고, 지정된 파라미터는 결과 파일에 메타 데이터로 함께 저장 됩니다. \
+`# 모델 초기화` 블록에서 TEMPERATURE 와 MODEL_NAME 을 지정할 수 있고, 지정된 파라미터는 결과 파일에 메타 데이터로 함께 저장 됩니다. 
 
-혹시 내 api-key로 사용 가능한 모든 모델의 리스트가 궁금할 때에는 `# Retrieve the list of available models` 블록을 주석 해제 해서 불러올 수 있습니다 \
+혹시 내 api-key로 사용 가능한 모든 모델의 리스트가 궁금할 때에는 `# Retrieve the list of available models` 블록을 주석 해제 해서 불러올 수 있습니다 
 
 ### System prompt 관련 주의점
 혹시 사용 중간에 System prompt를 수정하는 경우 수정이 바로 반영되지 않는 경우가 있는데, 이유는 잘 모르겠습니다. \
