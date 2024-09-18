@@ -69,7 +69,7 @@ def response(message, history, system_message):
         messages=messages,
         system=system_message,  
         temperature=TEMPERATURE,
-        max_tokens_to_sample=MAX_TOKENS
+        max_tokens=MAX_TOKENS
     )
     
     claude_response = response.content[0].text
