@@ -9,7 +9,7 @@ from langchain.schema import SystemMessage, HumanMessage, AIMessage
 openai_api_key = os.getenv("OPENAI_API_KEY")
 
 # Langchain GPT-4 모델 초기화
-TEMPERATURE = 0
+TEMPERATURE = 0.5
 MODEL_NAME = 'gpt-4o'
 llm = ChatOpenAI(api_key=openai_api_key, temperature=TEMPERATURE, model=MODEL_NAME)
 
