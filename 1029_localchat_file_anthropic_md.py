@@ -41,19 +41,21 @@ def read_csv(file):
 
 def process_uploaded_file(file):
     if file is None:
-        return "No file uploaded."
+        return None, None
     
     file_ext = os.path.splitext(file.name)[1].lower()
     
     try:
         if file_ext == '.pdf':
-            return read_pdf(file.name)
+            content = read_pdf(file.name)
+            return content, file.name
         elif file_ext == '.csv':
-            return read_csv(file.name)
+            content = read_csv(file.name)
+            return content, file.name
         else:
-            return f"Unsupported file type: {file_ext}"
+            return f"Unsupported file type: {file_ext}", None
     except Exception as e:
-        return f"Error processing file: {str(e)}"
+        return f"Error processing file: {str(e)}", None
 
 def save_chat_history_to_markdown(session_id):
     output_directory = "_output_Anthropic"
@@ -75,7 +77,22 @@ def save_chat_history_to_markdown(session_id):
             for entry in prompt["history"]:
                 file.write(f"### User Message\n")
                 file.write(f"**Time**: {entry['user_message_time']}\n\n")
-                file.write(f"{entry['user_message']}\n\n")
+                
+                # Clean up the message for markdown file
+                message = entry['user_message']
+                if "Here's the content of the uploaded file:" in message:
+                    # Extract the filename and question
+                    file_start = message.find("Uploaded file: ") + len("Uploaded file: ")
+                    file_end = message.find("\n", file_start)
+                    filename = message[file_start:file_end]
+                    
+                    question_start = message.find("My question about this content is: ") + len("My question about this content is: ")
+                    question = message[question_start:]
+                    
+                    # Format the message with just filename and question
+                    message = f"Uploaded file: {filename}\nQuestion: {question}"
+                
+                file.write(f"{message}\n\n")
                 file.write(f"### Bot Response\n")
                 file.write(f"**Time**: {entry['bot_response_time']}\n\n")
                 file.write(f"{entry['bot_response']}\n\n")
@@ -84,15 +101,16 @@ def save_chat_history_to_markdown(session_id):
     print(f"Chat history saved to {file_path}")
     return f"Chat history saved to {file_path}"
 
-def response(message, history, system_message, file_content=None):
+def response(message, history, system_message, file_data=None):
     messages = []
     for human, ai in history:
         messages.append({"role": "user", "content": human})
         messages.append({"role": "assistant", "content": ai})
     
-    # If there's file content, add it to the message
-    if file_content:
-        message = f"Here's the content of the uploaded file:\n\n{file_content}\n\nMy question about this content is: {message}"
+    # If there's file content, add it to the message with filename
+    if isinstance(file_data, tuple) and file_data[0] and file_data[1]:
+        file_content, filename = file_data
+        message = f"Here's the content of the uploaded file:\nUploaded file: {filename}\n\n{file_content}\n\nMy question about this content is: {message}"
     
     messages.append({"role": "user", "content": message})
     
@@ -144,18 +162,18 @@ with gr.Blocks() as demo:
     save_button = gr.Button("Save Anthropic Chat History as Markdown")
 
     state = gr.State(value="")  # Initial system prompt state
-    file_content = gr.State(value="")  # State to store file content
+    file_data = gr.State(value=None)  # State to store file content and filename
 
-    def submit_message_with_file(message, history, session_id, system_message, current_file_content):
-        response_text = response(message, history, system_message, current_file_content)
+    def submit_message_with_file(message, history, session_id, system_message, current_file_data):
+        response_text = response(message, history, system_message, current_file_data)
         history.append((message, response_text))
-        return history, "", current_file_content
+        return history, "", current_file_data
 
     def handle_file_upload(file):
         if file is None:
             return None
-        content = process_uploaded_file(file)
-        return content
+        content, filename = process_uploaded_file(file)
+        return (content, filename) if content and filename else None
 
     def delete_last_chat(chat_history):
         if len(chat_history) > 0:
@@ -170,11 +188,11 @@ with gr.Blocks() as demo:
         return save_chat_history_to_markdown(session_id)
 
     # Event handlers
-    msg.submit(submit_message_with_file, [msg, chatbot, session_id_input, state, file_content], [chatbot, msg, file_content])
-    submit_message_button.click(submit_message_with_file, inputs=[msg, chatbot, session_id_input, state, file_content], outputs=[chatbot, msg, file_content])
+    msg.submit(submit_message_with_file, [msg, chatbot, session_id_input, state, file_data], [chatbot, msg, file_data])
+    submit_message_button.click(submit_message_with_file, inputs=[msg, chatbot, session_id_input, state, file_data], outputs=[chatbot, msg, file_data])
     update_system_button.click(update_system_message, inputs=system_prompt, outputs=state)
     save_button.click(save_chat, inputs=[session_id_input], outputs=None)
-    file_upload.change(handle_file_upload, inputs=[file_upload], outputs=[file_content])
+    file_upload.change(handle_file_upload, inputs=[file_upload], outputs=[file_data])
 
     gr.Button("Delete Last Message ❌").click(fn=delete_last_chat, inputs=chatbot, outputs=chatbot)
     gr.Button("Clear Chat 💫").click(fn=lambda: [], inputs=None, outputs=chatbot)
