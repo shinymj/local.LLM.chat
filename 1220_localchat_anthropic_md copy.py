@@ -3,13 +3,17 @@ import uuid
 from datetime import datetime
 import gradio as gr
 from anthropic import Anthropic
+from dotenv import load_dotenv
+
+# Load environment variables from .env file
+load_dotenv()  
 
 # Initialize Anthropic client
 client = Anthropic(api_key=os.getenv("ANTHROPIC_API_KEY"))
 
 # Set model parameters
 TEMPERATURE = 0
-MODEL_NAME = 'claude-3-5-sonnet-20241022'
+MODEL_NAME = 'claude-sonnet-4-20250514'
 MAX_TOKENS = 4000
 
 # Global variable to maintain entire chat history
