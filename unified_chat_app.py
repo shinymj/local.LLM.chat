@@ -13,11 +13,29 @@ from dotenv import load_dotenv
 # Load environment variables
 load_dotenv()
 
+# Available models for each provider
+OPENAI_MODELS = [
+    "gpt-4o",
+    "gpt-4o-mini",
+    "gpt-4-turbo",
+    "gpt-4",
+    "gpt-3.5-turbo"
+]
+
+ANTHROPIC_MODELS = [
+    "claude-sonnet-4-20250514",
+    "claude-3-5-sonnet-20240620",
+    "claude-3-opus-20240229",
+    "claude-3-sonnet-20240229",
+    "claude-3-haiku-20240307"
+]
+
 # Global variable to maintain entire chat history
-global_chat_history = {
-    "meta": {},
-    "prompts": []
-}
+# Structure: list of sessions, each with meta and prompts
+global_chat_history = []
+
+# Current session metadata tracker
+current_meta = {}
 
 def get_current_time():
     """Return current time in yyyymmdd_hhmmss format"""
@@ -72,9 +90,9 @@ def process_uploaded_file(file):
     except Exception as e:
         return f"Error processing file: {str(e)}", None
 
-def save_chat_history_to_json(session_id, api_provider):
+def save_chat_history_to_json(session_id):
     """Save chat history as JSON file"""
-    output_directory = f"_output_{api_provider}"
+    output_directory = "_output"
     if not os.path.exists(output_directory):
         os.makedirs(output_directory)
 
@@ -88,9 +106,9 @@ def save_chat_history_to_json(session_id, api_provider):
     print(f"Chat history saved to {file_path}")
     return f"Chat history saved to {file_path}"
 
-def save_chat_history_to_markdown(session_id, api_provider):
+def save_chat_history_to_markdown(session_id):
     """Save chat history as Markdown file"""
-    output_directory = f"_output_{api_provider}"
+    output_directory = "_output"
     if not os.path.exists(output_directory):
         os.makedirs(output_directory)
 
@@ -100,46 +118,57 @@ def save_chat_history_to_markdown(session_id, api_provider):
 
     with open(file_path, 'w', encoding='utf-8') as file:
         file.write(f"# Chat History\n\n")
-        file.write(f"**Model**: {global_chat_history['meta'].get('model', 'N/A')}\n\n")
-        file.write(f"**Temperature**: {global_chat_history['meta'].get('temperature', 'N/A')}\n\n")
-        file.write(f"**Max Tokens**: {global_chat_history['meta'].get('max_tokens', 'N/A')}\n\n")
 
-        for i, prompt in enumerate(global_chat_history["prompts"]):
-            file.write(f"## Prompt {i+1}\n")
-            file.write(f"{prompt['prompt']}\n\n")
-            for entry in prompt["history"]:
-                file.write(f"### User Message\n")
-                file.write(f"**Time**: {entry['user_message_time']}\n\n")
+        # Iterate through all sessions
+        for session_idx, session in enumerate(global_chat_history):
+            file.write(f"## Session {session_idx + 1}\n\n")
 
-                # Clean up the message for markdown file
-                message = entry['user_message']
-                if "Here's the content of the uploaded file:" in message:
-                    # Extract the filename and question
-                    file_start = message.find("Uploaded file: ") + len("Uploaded file: ")
-                    file_end = message.find("\n", file_start)
-                    if file_end == -1:
-                        filename = message[file_start:]
-                        question = ""
-                    else:
-                        filename = message[file_start:file_end]
-                        question_start = message.find("My question about this content is: ")
-                        if question_start != -1:
-                            question_start += len("My question about this content is: ")
-                            question = message[question_start:]
-                        else:
+            # Write metadata for this session
+            meta = session.get('meta', {})
+            file.write(f"**API Provider**: {meta.get('api_provider', 'N/A')}\n\n")
+            file.write(f"**Model**: {meta.get('model', 'N/A')}\n\n")
+            file.write(f"**Temperature**: {meta.get('temperature', 'N/A')}\n\n")
+            file.write(f"**Max Tokens**: {meta.get('max_tokens', 'N/A')}\n\n")
+
+            # Write prompts and chat history for this session
+            for i, prompt in enumerate(session.get("prompts", [])):
+                file.write(f"### Prompt {i+1}\n")
+                file.write(f"{prompt['prompt']}\n\n")
+                for entry in prompt["history"]:
+                    file.write(f"#### User Message\n")
+                    file.write(f"**Time**: {entry['user_message_time']}\n\n")
+
+                    # Clean up the message for markdown file
+                    message = entry['user_message']
+                    if "Here's the content of the uploaded file:" in message:
+                        # Extract the filename and question
+                        file_start = message.find("Uploaded file: ") + len("Uploaded file: ")
+                        file_end = message.find("\n", file_start)
+                        if file_end == -1:
+                            filename = message[file_start:]
                             question = ""
+                        else:
+                            filename = message[file_start:file_end]
+                            question_start = message.find("My question about this content is: ")
+                            if question_start != -1:
+                                question_start += len("My question about this content is: ")
+                                question = message[question_start:]
+                            else:
+                                question = ""
 
-                    # Format the message with just filename and question
-                    if question:
-                        message = f"Uploaded file: {filename}\nQuestion: {question}"
-                    else:
-                        message = f"Uploaded file: {filename}"
+                        # Format the message with just filename and question
+                        if question:
+                            message = f"Uploaded file: {filename}\nQuestion: {question}"
+                        else:
+                            message = f"Uploaded file: {filename}"
 
-                file.write(f"{message}\n\n")
-                file.write(f"### Bot Response\n")
-                file.write(f"**Time**: {entry['bot_response_time']}\n\n")
-                file.write(f"{entry['bot_response']}\n\n")
-                file.write(f"---\n\n")
+                    file.write(f"{message}\n\n")
+                    file.write(f"#### Bot Response\n")
+                    file.write(f"**Time**: {entry['bot_response_time']}\n\n")
+                    file.write(f"{entry['bot_response']}\n\n")
+                    file.write(f"---\n\n")
+
+            file.write(f"\n---\n\n")
 
     print(f"Chat history saved to {file_path}")
     return f"Chat history saved to {file_path}"
@@ -161,15 +190,41 @@ def get_llm(api_provider, model_name, temperature, max_tokens):
             max_tokens=max_tokens
         )
 
-def response(message, history, system_message, api_provider, model_name, temperature, max_tokens, file_data=None):
-    """Get response from the selected LLM"""
-    # Update global chat history metadata
-    global_chat_history["meta"] = {
+def check_meta_changed(api_provider, model_name, temperature, max_tokens):
+    """Check if meta parameters have changed"""
+    global current_meta
+
+    new_meta = {
         "api_provider": api_provider,
         "model": model_name,
         "temperature": temperature,
         "max_tokens": max_tokens
     }
+
+    # Check if meta has changed
+    if current_meta != new_meta:
+        current_meta = new_meta.copy()
+        return True
+    return False
+
+def response(message, history, system_message, api_provider, model_name, temperature, max_tokens, file_data=None):
+    """Get response from the selected LLM"""
+    global global_chat_history
+
+    # Check if meta has changed
+    meta_changed = check_meta_changed(api_provider, model_name, temperature, max_tokens)
+
+    # If meta changed or no sessions exist, create a new session
+    if meta_changed or len(global_chat_history) == 0:
+        global_chat_history.append({
+            "meta": {
+                "api_provider": api_provider,
+                "model": model_name,
+                "temperature": temperature,
+                "max_tokens": max_tokens
+            },
+            "prompts": []
+        })
 
     # Initialize LLM
     llm = get_llm(api_provider, model_name, temperature, max_tokens)
@@ -193,14 +248,17 @@ def response(message, history, system_message, api_provider, model_name, tempera
     user_message_time = get_current_time()
     bot_response_time = get_current_time()
 
+    # Get current session (last one in the list)
+    current_session = global_chat_history[-1]
+
     # Add to global chat history
-    if not global_chat_history["prompts"] or global_chat_history["prompts"][-1]["prompt"] != system_message:
-        global_chat_history["prompts"].append({
+    if not current_session["prompts"] or current_session["prompts"][-1]["prompt"] != system_message:
+        current_session["prompts"].append({
             "prompt": system_message,
             "history": []
         })
 
-    global_chat_history["prompts"][-1]["history"].append({
+    current_session["prompts"][-1]["history"].append({
         "user_message": message,
         "user_message_time": user_message_time,
         "bot_response": llm_response.content,
@@ -212,6 +270,13 @@ def response(message, history, system_message, api_provider, model_name, tempera
 def generate_session_id():
     """Generate a unique session ID"""
     return str(uuid.uuid4())
+
+def get_model_choices(api_provider):
+    """Get available models based on API provider"""
+    if api_provider == "OpenAI":
+        return gr.update(choices=OPENAI_MODELS, value=OPENAI_MODELS[0])
+    else:  # Anthropic
+        return gr.update(choices=ANTHROPIC_MODELS, value=ANTHROPIC_MODELS[0])
 
 # Gradio UI setup
 with gr.Blocks(title="Unified LLM Chat") as demo:
@@ -233,10 +298,10 @@ with gr.Blocks(title="Unified LLM Chat") as demo:
         )
 
     with gr.Row():
-        model_name = gr.Textbox(
-            value="gpt-4o",
+        model_name = gr.Dropdown(
+            choices=OPENAI_MODELS,
+            value=OPENAI_MODELS[0],
             label="Model Name",
-            placeholder="e.g., gpt-4o or claude-sonnet-4-20250514",
             scale=2
         )
         temperature = gr.Slider(
@@ -318,18 +383,11 @@ with gr.Blocks(title="Unified LLM Chat") as demo:
     def update_system_message(new_prompt):
         return new_prompt
 
-    def save_chat(session_id, save_fmt, api_prov):
+    def save_chat(session_id, save_fmt):
         if save_fmt == "JSON":
-            return save_chat_history_to_json(session_id, api_prov)
+            return save_chat_history_to_json(session_id)
         else:
-            return save_chat_history_to_markdown(session_id, api_prov)
-
-    def update_model_suggestion(api_prov):
-        """Update model name suggestion based on API provider"""
-        if api_prov == "OpenAI":
-            return "gpt-4o"
-        else:
-            return "claude-sonnet-4-20250514"
+            return save_chat_history_to_markdown(session_id)
 
     # Event handlers
     msg.submit(
@@ -343,11 +401,13 @@ with gr.Blocks(title="Unified LLM Chat") as demo:
         outputs=[chatbot, msg, file_data]
     )
     update_system_button.click(update_system_message, inputs=system_prompt, outputs=state)
-    save_button.click(save_chat, inputs=[session_id_input, save_format, api_provider], outputs=save_status)
+    save_button.click(save_chat, inputs=[session_id_input, save_format], outputs=save_status)
     file_upload.change(handle_file_upload, inputs=[file_upload], outputs=[file_data])
     delete_last_button.click(fn=delete_last_chat, inputs=chatbot, outputs=chatbot)
     clear_chat_button.click(fn=lambda: [], inputs=None, outputs=chatbot)
-    api_provider.change(update_model_suggestion, inputs=[api_provider], outputs=[model_name])
+
+    # Update model dropdown when API provider changes
+    api_provider.change(get_model_choices, inputs=[api_provider], outputs=[model_name])
 
 if __name__ == "__main__":
     demo.launch(share=True)
