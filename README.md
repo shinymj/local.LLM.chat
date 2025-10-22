@@ -1,13 +1,33 @@
 # local.LLM.chat
-Chatbots leveraging **LLMs** and **Gradio interface** that can save output to local disc.\
-조만간 LLM 종류를 늘려나갈 예정입니다. 
+Chatbots leveraging **LLMs** and **Gradio interface** that can save output to local disc.
+
+## 통합 버전 (Unified Chat App)
+
+**`unified_chat_app.py`** - 모든 기능을 하나로 통합한 최신 버전!
+
+### 주요 기능
+- **멀티 API 지원**: OpenAI(GPT-4 등)와 Anthropic(Claude) API를 선택해서 사용 가능
+- **파일 업로드**: PDF, Markdown, CSV, TXT 파일 업로드 및 분석
+- **파라미터 조정**: Temperature와 Max Tokens를 UI에서 직접 조정 가능
+- **대화 저장**: JSON 또는 Markdown 형식 중 선택해서 저장
+- **LangChain 기반**: LangChain 라이브러리를 사용한 안정적인 통합
 
 ### Notice
-`root` 폴더에 `.env`파일 만들어 아래와 같이 api key를 입력해야 실행할 수 있습니다. 
+`root` 폴더에 `.env`파일 만들어 아래와 같이 api key를 입력해야 실행할 수 있습니다.
 ```
-openai_api_key = "YOUR OPENAI KEY"
+OPENAI_API_KEY=your_openai_api_key_here
+ANTHROPIC_API_KEY=your_anthropic_api_key_here
 ```
 
+### 실행 방법
+```bash
+pip install -r requirements.txt
+python unified_chat_app.py
+```
+
+---
+
+## 기존 버전 (Legacy Files)
 
 ### output file type
 
