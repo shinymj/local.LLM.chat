@@ -155,7 +155,7 @@ def get_llm(api_provider, model_name, temperature, max_tokens):
         )
     else:  # Anthropic
         return ChatAnthropic(
-            api_key=os.getenv("ANTHROPIC_API_KEY"),
+            anthropic_api_key=os.getenv("ANTHROPIC_API_KEY"),
             model=model_name,
             temperature=temperature,
             max_tokens=max_tokens
