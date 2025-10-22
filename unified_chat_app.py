@@ -130,6 +130,10 @@ def save_chat_history_to_markdown(session_id):
             file.write(f"**Temperature**: {meta.get('temperature', 'N/A')}\n\n")
             file.write(f"**Max Tokens**: {meta.get('max_tokens', 'N/A')}\n\n")
 
+            # Add uploaded file info if exists
+            if meta.get('uploaded_file'):
+                file.write(f"**Uploaded File**: {meta.get('uploaded_file')}\n\n")
+
             # Write prompts and chat history for this session
             for i, prompt in enumerate(session.get("prompts", [])):
                 file.write(f"### Prompt {i+1}\n")
@@ -137,32 +141,7 @@ def save_chat_history_to_markdown(session_id):
                 for entry in prompt["history"]:
                     file.write(f"#### User Message\n")
                     file.write(f"**Time**: {entry['user_message_time']}\n\n")
-
-                    # Clean up the message for markdown file
-                    message = entry['user_message']
-                    if "Here's the content of the uploaded file:" in message:
-                        # Extract the filename and question
-                        file_start = message.find("Uploaded file: ") + len("Uploaded file: ")
-                        file_end = message.find("\n", file_start)
-                        if file_end == -1:
-                            filename = message[file_start:]
-                            question = ""
-                        else:
-                            filename = message[file_start:file_end]
-                            question_start = message.find("My question about this content is: ")
-                            if question_start != -1:
-                                question_start += len("My question about this content is: ")
-                                question = message[question_start:]
-                            else:
-                                question = ""
-
-                        # Format the message with just filename and question
-                        if question:
-                            message = f"Uploaded file: {filename}\nQuestion: {question}"
-                        else:
-                            message = f"Uploaded file: {filename}"
-
-                    file.write(f"{message}\n\n")
+                    file.write(f"{entry['user_message']}\n\n")
                     file.write(f"#### Bot Response\n")
                     file.write(f"**Time**: {entry['bot_response_time']}\n\n")
                     file.write(f"{entry['bot_response']}\n\n")
@@ -211,6 +190,11 @@ def response(message, history, system_message, api_provider, model_name, tempera
     """Get response from the selected LLM"""
     global global_chat_history
 
+    # Extract filename if file is uploaded
+    uploaded_filename = None
+    if isinstance(file_data, tuple) and file_data[0] and file_data[1]:
+        uploaded_filename = file_data[1]
+
     # Check if meta has changed
     meta_changed = check_meta_changed(api_provider, model_name, temperature, max_tokens)
 
@@ -221,10 +205,15 @@ def response(message, history, system_message, api_provider, model_name, tempera
                 "api_provider": api_provider,
                 "model": model_name,
                 "temperature": temperature,
-                "max_tokens": max_tokens
+                "max_tokens": max_tokens,
+                "uploaded_file": uploaded_filename
             },
             "prompts": []
         })
+    else:
+        # Update uploaded_file in current session meta if file is uploaded
+        if uploaded_filename:
+            global_chat_history[-1]["meta"]["uploaded_file"] = uploaded_filename
 
     # Initialize LLM
     llm = get_llm(api_provider, model_name, temperature, max_tokens)
@@ -235,12 +224,16 @@ def response(message, history, system_message, api_provider, model_name, tempera
         history_langchain_format.append(HumanMessage(content=human))
         history_langchain_format.append(AIMessage(content=ai))
 
-    # If there's file content, add it to the message with filename
+    # Prepare message for LLM (with file content) and original message (without file content)
+    original_message = message
+    message_for_llm = message
+
+    # If there's file content, add it to the message for LLM only
     if isinstance(file_data, tuple) and file_data[0] and file_data[1]:
         file_content, filename = file_data
-        message = f"Here's the content of the uploaded file:\nUploaded file: {filename}\n\n{file_content}\n\nMy question about this content is: {message}"
+        message_for_llm = f"Here's the content of the uploaded file:\nUploaded file: {filename}\n\n{file_content}\n\nMy question about this content is: {message}"
 
-    history_langchain_format.append(HumanMessage(content=message))
+    history_langchain_format.append(HumanMessage(content=message_for_llm))
 
     # Get response from LLM
     llm_response = llm.invoke(history_langchain_format)
@@ -258,8 +251,9 @@ def response(message, history, system_message, api_provider, model_name, tempera
             "history": []
         })
 
+    # Save original message (without file content) to history
     current_session["prompts"][-1]["history"].append({
-        "user_message": message,
+        "user_message": original_message,
         "user_message_time": user_message_time,
         "bot_response": llm_response.content,
         "bot_response_time": bot_response_time
