@@ -15,23 +15,21 @@ load_dotenv()
 
 # Available models for each provider
 OPENAI_MODELS = [
-    "gpt-4o",
-    "gpt-4o-mini",
-    "gpt-4-turbo",
-    "gpt-4",
-    "gpt-3.5-turbo"
+    "openai/gpt-5-chat",
+    "openai/gpt-4.1",
+    "openai/gpt-4o",
+    "openai/gpt-4o-mini",
+    "openai/gpt-4-turbo",
+    "openai/gpt-4",
+    "anthropic/claude-opus-4.1",
+    "anthropic/claude-sonnet-4.5",
+    "anthropic/claude-haiku-4.5",
+    "anthropic/claude-sonnet-4",
+    "anthropic/claude-3.5-sonnet",
+    "anthropic/claude-3-opus"
 ]
 
 ANTHROPIC_MODELS = [
-    "claude-haiku-4-5-20251001",
-    "claude-sonnet-4-5-20250929",
-    "claude-opus-4-1-20250805",
-    "claude-sonnet-4-20250514",
-    "claude-3-7-sonnet-20250219",
-    "claude-3-5-sonnet-20240620",
-    "claude-3-opus-20240229",
-    "claude-3-sonnet-20240229",
-    "claude-3-haiku-20240307"
 ]
 
 # Global variable to maintain entire chat history
@@ -160,15 +158,17 @@ def get_llm(api_provider, model_name, temperature, max_tokens):
     """Initialize and return the appropriate LLM based on API provider"""
     if api_provider == "OpenAI":
         return ChatOpenAI(
-            api_key=os.getenv("OPENAI_API_KEY"),
+            base_url="https://chat.elpai.org/v1",
+            api_key=os.getenv("ELPAI_API_KEY"),
             model=model_name,
             temperature=temperature,
             max_tokens=max_tokens
         )
     else:  # Anthropic
         return ChatAnthropic(
-            anthropic_api_key=os.getenv("ANTHROPIC_API_KEY"),
-            model=model_name,
+            anthropic_api_url="https://chat.elpai.org/v1",
+            anthropic_api_key=os.getenv("ELPAI_API_KEY"),
+            model_name=model_name,
             temperature=temperature,
             max_tokens=max_tokens
         )
@@ -271,7 +271,7 @@ def generate_session_id():
 
 def get_model_choices(api_provider):
     """Get available models based on API provider"""
-    if api_provider == "OpenAI":
+    if api_provider == "ELPAI":
         return gr.update(choices=OPENAI_MODELS, value=OPENAI_MODELS[0])
     else:  # Anthropic
         return gr.update(choices=ANTHROPIC_MODELS, value=ANTHROPIC_MODELS[0])
@@ -289,8 +289,8 @@ with gr.Blocks(title="Unified LLM Chat") as demo:
             scale=2
         )
         api_provider = gr.Dropdown(
-            choices=["OpenAI", "Anthropic"],
-            value="OpenAI",
+            choices=["ELPAI", "Others(disabled)"],
+            value="ELPAI",
             label="API Provider",
             scale=1
         )
